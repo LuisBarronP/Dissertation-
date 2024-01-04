@@ -1,1 +1,42 @@
+import pyaudio
+import wave
 
+FRAMES_PER_BUFFER = 3200
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 48000
+RECORD_SECONDS = 5
+WAVE_OUTPUT_FILENAME = "file.wav"
+
+p = pyaudio.PyAudio()
+
+try:
+    # Open audio stream
+    stream = p.open(format=FORMAT,
+                    channels=CHANNELS,
+                    rate=RATE,
+                    input=True,
+                    frames_per_buffer=FRAMES_PER_BUFFER)
+
+    print("Begin Recording:")
+
+    frames = []
+    for i in range(0, int(RATE / FRAMES_PER_BUFFER * RECORD_SECONDS)):
+        data = stream.read(FRAMES_PER_BUFFER)
+        frames.append(data)
+
+    print("End of Recording")
+
+    # Close the stream
+    stream.stop_stream()
+    stream.close()
+
+    # Save audio to wave file
+    with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(p.get_sample_size(FORMAT))
+        wf.setframerate(RATE)
+        wf.writeframes(b''.join(frames))
+
+finally:
+    p.terminate()
