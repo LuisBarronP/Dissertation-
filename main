@@ -1,5 +1,6 @@
 import pyaudio
 import wave
+import speech_recognition as sr
 
 FRAMES_PER_BUFFER = 3200
 FORMAT = pyaudio.paInt16
@@ -37,6 +38,20 @@ try:
         wf.setsampwidth(p.get_sample_size(FORMAT))
         wf.setframerate(RATE)
         wf.writeframes(b''.join(frames))
+
+    # Transcribe audio file
+    r = sr.Recognizer()
+    with sr.AudioFile(WAVE_OUTPUT_FILENAME) as source:
+        audio = r.record(source)
+    try:
+        print("Transcription: " + r.recognize_google(audio))
+    except sr.UnknownValueError:
+        print("Google Speech Recognition could not understand audio")
+    except sr.RequestError as e:
+        print("Could not request results from Google Speech Recognition service; {0}".format(e))
+
+except Exception as e:
+    print(f"An error occurred: {str(e)}")
 
 finally:
     p.terminate()
