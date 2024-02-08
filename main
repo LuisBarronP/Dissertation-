@@ -1,57 +1,114 @@
 import pyaudio
 import wave
+import numpy as np
 import speech_recognition as sr
+import time
+import datetime
+import pyttsx3
+import pyautogui
+import keyboard
+import subprocess
+import psutil
+import webbrowser
+import json
 
-FRAMES_PER_BUFFER = 3200
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 48000
-RECORD_SECONDS = 5
-WAVE_OUTPUT_FILENAME = "file.wav"
+#Initializing the pyttsx3 engine
+engine = pyttsx3.init('sapi5')
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)
 
-p = pyaudio.PyAudio()
+#Function to speak the given text
+def speak(audio):
+    engine.say(audio)
+    engine.runAndWait()
 
-try:
-    # Open audio stream
-    stream = p.open(format=FORMAT,
-                    channels=CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    frames_per_buffer=FRAMES_PER_BUFFER)
+#Function to check if a given process is running
+def is_process_running(process_name):
+    return any(process_name.lower() in p.name().lower() for p in psutil.process_iter(['name']))
 
-    print("Begin Recording:")
+#Loading commands from JSON
+def perform_action(command):
+    #Loading commands from the JSON file
+    with open('commands.json', 'r') as file:
+        commands = json.load(file)
+    
+    for cmd, details in commands.items():
+        if cmd in command:
+            action = details["action"]
+            if action == "hotkey":
+                pyautogui.hotkey(*details["keys"])
+            elif action == "subprocess":
+                subprocess.Popen(details["command"], shell=True)
+            break
 
-    frames = []
-    for i in range(0, int(RATE / FRAMES_PER_BUFFER * RECORD_SECONDS)):
-        data = stream.read(FRAMES_PER_BUFFER)
-        frames.append(data)
+#Function for determine time of day and greet the user
+current_hour = datetime.datetime.now().hour  # Renamed variable to current_hour
+if current_hour >= 0 and current_hour < 12:
+    speak("Good Morning!")
+elif current_hour >= 12 and current_hour < 18:        
+    speak("Good Afternoon!")  
+else:        
+    speak("Good Evening!") 
 
-    print("End of Recording")
+    speak("I am your Assistant EVA for today.")
 
-    # Close the stream
-    stream.stop_stream()
-    stream.close()
+#Function to get language choice from the user using speech recognition
+def get_language_choice(recognizer):
+    speak("Choose a language from English or Spanish to get started.")
+    while True:
+        try:
+            with sr.Microphone() as source:
+                print("Listening for language choice...")
+                audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)
+                choice = recognizer.recognize_google(audio).lower()
+                if 'english' in choice:
+                    return 'en-US'
+                elif 'español' in choice or 'spanish' in choice:
+                    return 'es-ES'
+                else:
+                    speak("Sorry, I didn't understand. Please say English or Spanish.")
+        except sr.UnknownValueError:
+            speak("Sorry, I couldn't understand that. Please say English or Spanish.")
+        except sr.RequestError as e:
+            print(f"Could not request results; {e}")
 
-    # Save audio to wave file
-    with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(p.get_sample_size(FORMAT))
-        wf.setframerate(RATE)
-        wf.writeframes(b''.join(frames))
 
-    # Transcribe audio file
-    r = sr.Recognizer()
-    with sr.AudioFile(WAVE_OUTPUT_FILENAME) as source:
-        audio = r.record(source)
-    try:
-        print("Transcription: " + r.recognize_google(audio))
-    except sr.UnknownValueError:
-        print("Google Speech Recognition could not understand audio")
-    except sr.RequestError as e:
-        print("Could not request results from Google Speech Recognition service; {0}".format(e))
+#Function to continuously listen for commands and act on them
+def continuous_listen_and_act(language_choice):
+    recognizer = sr.Recognizer()
+    while True:
+        print("Please say a command...")
+        with sr.Microphone() as source:
+            audio = recognizer.listen(source, timeout=10, phrase_time_limit=10)
+            try:
+                recognized_text = recognizer.recognize_google(audio, language=language_choice)
+                print("Transcription: " + recognized_text)
+                
+                perform_action(recognized_text)  
+                if recognized_text.lower() == "stop":
+                    print("Stopping.")
+                    break
 
-except Exception as e:
-    print(f"An error occurred: {str(e)}")
+            #The following except blocks handle the different exceptions that can occur during speech recognition    
+            except sr.WaitTimeoutError: 
+                print("No speech detected within the time limit. Please try again.")
+            except sr.UnknownValueError:
+                speak("Sorry, I couldn't understand that. Please try again.")
+            except sr.RequestError as e:
+                print(f"Could not request results from Google Speech Recognition service; {e}")
+            except Exception as e:
+                print(f"An error occurred: {str(e)}")
 
-finally:
-    p.terminate()
+#Main function
+def main():
+    speak("I am your Assistant EVA for today.")
+    recognizer = sr.Recognizer()
+    language_choice = get_language_choice(recognizer)
+    if language_choice:
+        speak(f"You have selected {'English' if language_choice == 'en-US' else 'Spanish'}. I am ready to receive your commands.")
+        continuous_listen_and_act(language_choice)
+    else:
+        speak("Failed to select a language. Exiting.")
+
+if __name__ == "__main__":
+    main()
