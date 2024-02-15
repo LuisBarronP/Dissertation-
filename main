@@ -45,16 +45,21 @@ def perform_action(command):
 current_hour = datetime.datetime.now().hour  # Renamed variable to current_hour
 if current_hour >= 0 and current_hour < 12:
     speak("Good Morning!")
+    print("Good Morning!")
 elif current_hour >= 12 and current_hour < 18:        
-    speak("Good Afternoon!")  
+    speak("Good Afternoon!")
+    print("Good Afternoon!")  
 else:        
-    speak("Good Evening!") 
+    speak("Good Evening!")
+    print("Good Evening!") 
 
     speak("I am your Assistant EVA for today.")
+    print("I am your Assistant EVA for today.")
 
 #Function to get language choice from the user using speech recognition
 def get_language_choice(recognizer):
     speak("Choose a language from English or Spanish to get started.")
+    print("Choose a language from English or Spanish to get started.")
     while True:
         try:
             with sr.Microphone() as source:
@@ -67,8 +72,10 @@ def get_language_choice(recognizer):
                     return 'es-ES'
                 else:
                     speak("Sorry, I didn't understand. Please say English or Spanish.")
+                    print("Sorry, I didn't understand. Please say English or Spanish.")
         except sr.UnknownValueError:
             speak("Sorry, I couldn't understand that. Please say English or Spanish.")
+            print("Sorry, I couldn't understand that. Please say English or Spanish.")
         except sr.RequestError as e:
             print(f"Could not request results; {e}")
 
