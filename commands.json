@@ -1,7 +1,20 @@
 {
-    "open a new tab": {"action": "hotkey", "keys": ["ctrl", "t"]},
-    "close this tab": {"action": "hotkey", "keys": ["ctrl", "w"]},
-    "open settings": {"action": "subprocess", "command": ["start", "ms-settings:"]},
-    "open google": {"action": "subprocess", "command": ["start", "chrome", "https://www.google.com"]},
-    "open youtube": {"action": "subprocess", "command": ["start", "chrome", "https://www.youtube.com"]}
+  "open a new tab": {"action": "hotkey", "keys": ["ctrl", "t"]},
+  "close this tab": {"action": "hotkey", "keys": ["ctrl", "w"]},
+  "open settings": {"action": "subprocess", "command": ["start", "ms-settings:"]},
+  "open google": {"action": "subprocess", "command": ["start", "chrome", "https://www.google.com"]},
+  "open youtube": {"action": "subprocess", "command": ["start", "chrome", "https://www.youtube.com"]},
+  "mute volume": {"action": "hotkey", "keys": ["volumeMute"]},
+  "increase volume": {"action": "hotkey", "keys": ["volumeUp"]},
+  "decrease volume": {"action": "hotkey", "keys": ["volumeDown"]},
+  "pause music": {"action": "hotkey", "keys": ["mediaPlayPause"]},
+  "next track": {"action": "hotkey", "keys": ["mediaNextTrack"]},
+  "previous track": {"action": "hotkey", "keys": ["mediaPrevTrack"]},
+  "open email": {"action": "subprocess", "command": ["start", "chrome", "https://mail.google.com"]},
+  "search wikipedia": {"action": "dynamic", "base_url": "https://en.wikipedia.org/wiki/Special:Search?search="},
+  "open notepad": {"action": "subprocess", "command": ["notepad.exe"]},
+  "shutdown computer": {"action": "subprocess", "command": ["shutdown", "/s", "/t", "0"]},
+  "restart computer": {"action": "subprocess", "command": ["shutdown", "/r", "/t", "0"]},
+  "open file explorer": {"action": "subprocess", "command": ["explorer"]},
+  "take screenshot": {"action": "hotkey", "keys": ["win", "shift", "s"]}
   }
