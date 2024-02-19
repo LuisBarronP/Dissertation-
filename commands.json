@@ -10,11 +10,20 @@
   "pause music": {"action": "hotkey", "keys": ["mediaPlayPause"]},
   "next track": {"action": "hotkey", "keys": ["mediaNextTrack"]},
   "previous track": {"action": "hotkey", "keys": ["mediaPrevTrack"]},
-  "open email": {"action": "subprocess", "command": ["start", "chrome", "https://mail.google.com"]},
-  "search wikipedia": {"action": "dynamic", "base_url": "https://en.wikipedia.org/wiki/Special:Search?search="},
+  "open email": {"action": "subprocess", "command": ["start", "chrome", "https://www.gmail.com"]},
   "open notepad": {"action": "subprocess", "command": ["notepad.exe"]},
   "shutdown computer": {"action": "subprocess", "command": ["shutdown", "/s", "/t", "0"]},
   "restart computer": {"action": "subprocess", "command": ["shutdown", "/r", "/t", "0"]},
   "open file explorer": {"action": "subprocess", "command": ["explorer"]},
-  "take screenshot": {"action": "hotkey", "keys": ["win", "shift", "s"]}
-  }
+  "take screenshot": {"action": "hotkey", "keys": ["win", "shift", "s"]},
+  "open spotify": {"action": "subprocess", "command": ["start", "spotify"]},
+  "open discord": {"action": "subprocess", "command": ["start", "discord"]},
+  "open steam": {"action": "subprocess", "command": ["start", "steam"]},
+  "open calculator": {"action": "subprocess", "command": ["start", "calc"]},
+  "open calendar": {"action": "subprocess", "command": ["start", "outlookcal:"]},
+  "search Google for": {"action": "dynamic_search", "base_url": "https://www.google.com/search?q={}"},
+  "search YouTube for": {"action": "dynamic_search", "base_url": "https://www.youtube.com/results?search_query={}"},
+  "search Wikipedia for": {"action": "dynamic_search", "base_url": "https://en.wikipedia.org/wiki/{}"},
+  "search Amazon for": {"action": "dynamic_search", "base_url": "https://www.amazon.com/s?k={}"},
+  "search eBay for": {"action": "dynamic_search", "base_url": "https://www.ebay.com/sch/i.html?_nkw={}"}
+}
