@@ -1,3 +1,4 @@
+import os
 import pyaudio
 import wave
 import numpy as np
@@ -11,12 +12,20 @@ import subprocess
 import psutil
 import webbrowser
 import json
+import sounddevice as sd
+import speech_recognition as sr
+from pynput.keyboard import Controller, Key
+from pynput import keyboard
+import re
+import json
+import threading
+
+chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 
 #Initializing the pyttsx3 engine
 engine = pyttsx3.init('sapi5')
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)
-
 # Adjust the speech rate
 engine.setProperty('rate', 150) 
 
@@ -24,46 +33,86 @@ engine.setProperty('rate', 150)
 def speak(audio):
     engine.say(audio)
     engine.runAndWait()
-    time.sleep(0)
 
 #Function to check if a given process is running
 def is_process_running(process_name):
     return any(process_name.lower() in p.name().lower() for p in psutil.process_iter(['name']))
 
 #Loading commands from JSON
-def perform_action(command):
-    # Load commands from the JSON file
-    with open('commands.json', 'r') as file:
-        commands = json.load(file)
+with open('commands.json', 'r') as file:
+    commands = json.load(file)
 
-    for cmd, details in commands.items():
-        if command.startswith(cmd):
-            action = details["action"]
-            if action == "dynamic_search":
-                search_query = command.replace(cmd, "").strip()
-                search_url = details["base_url"].format(search_query)
+keyboard_controller = Controller()
+
+def handle_dynamic_search(command_text, commands_json):
+    for command_key, command_details in commands_json.items():
+        if command_details.get('action') == 'dynamic_search':
+            # Updated regex to be more flexible with command structures
+            pattern = re.compile(re.escape(command_key) + r'\s(.+)', re.IGNORECASE)
+            match = pattern.search(command_text)
+            if match:
+                search_query = match.group(1).strip()
+                search_url = command_details['base_url'].format(search_query)
                 webbrowser.open(search_url)
-                return
-            elif action == "hotkey":
-                pyautogui.hotkey(*details["keys"])
-            elif action == "subprocess":
-                subprocess.Popen(details["command"], shell=True)
-            break
-    else:
-        print("Command not recognized.")
-        speak("Command not recognized.")
+                break
+
+def audio_callback(recognizer, audio, language_choice):
+    
+    try:
+        text = recognizer.recognize_google(audio, language=language_choice)
+        print(f"Google Speech Recognition thinks you said '{text}'")
+        command_executed = False
+
+        # Load commands from JSON
+        with open('commands.json', 'r') as file:
+            commands_json = json.load(file)
+
+        for command_key, command_details in commands_json.items():
+            if command_key.lower() in text.lower():
+                if command_details['action'] == 'dynamic_search':
+                    handle_dynamic_search(text, commands_json)
+                elif command_details['action'] == 'hotkey':
+                    # Simulate hotkey press
+                    hotkey = command_details['hotkey']
+                    keyboard.press(hotkey)
+                    keyboard.release(hotkey)
+                elif command_details['action'] == 'subprocess':
+                    # Execute a subprocess command
+                    subprocess_command = command_details['subprocess_command']
+                    subprocess.run(subprocess_command, shell=True)
+
+                print(f"Executing {command_details['action']} for {command_key}")
+                command_executed = True
+                break  #   checking after the first match
         
+        if not command_executed:
+            print("Command not found.")
+            
+    except sr.UnknownValueError:
+        print("Google Speech Recognition could not understand audio")
+    except sr.RequestError as e:
+        print(f"Could not request results from Google Speech Recognition service; {e}")
+
 #Main function + Function for determine time of day and greet the user
 def main():
+    def listen_for_trigger_word(EVA):
+        # Function implementation will go here
+        pass
+
+    trigger_detected = listen_for_trigger_word('EVA')
+    if trigger_detected:
+        print("Eva activated")
+        speak("Eva activated")
+
     current_hour = datetime.datetime.now().hour
     greeting = "Good Morning!" if current_hour < 12 else "Good Afternoon!" if current_hour < 18 else "Good Evening!"
-    
+
     print(greeting)
     speak(greeting)
-    
+
     print("I am your Assistant EVA for today.")
     speak("I am your Assistant EVA for today.")
-    
+
     recognizer = sr.Recognizer()
     print("Choose a language from English or Spanish to get started.")
     # Calling speak right after print to minimize delay
@@ -100,6 +149,30 @@ def get_language_choice(recognizer):
         except sr.RequestError as e:
             print(f"Could not request results; {e}")
 
+def listen_in_background(trigger_word="EVA"):
+    recognizer = sr.Recognizer()
+    microphone = sr.Microphone()
+    
+    def callback(recognizer, audio):
+        try:
+            speech_as_text = recognizer.recognize_google(audio)
+            if trigger_word.lower() in speech_as_text.lower():
+                print("EVA activated")
+                speak("EVA activated")
+                # Here, add any actions to perform upon activation
+        except (sr.UnknownValueError, sr.RequestError):
+            pass
+
+    with microphone as source:
+        recognizer.adjust_for_ambient_noise(source)
+        stop_listening = recognizer.listen_in_background(microphone, callback)
+
+    return stop_listening  # Return the stop function if needed to stop listening
+
+        # This is just to keep the program running
+    import time
+    while True:
+        time.sleep(0.1)
 
 #Function to continuously listen for commands and act on them
 def continuous_listen_and_act(language_choice):
@@ -107,27 +180,20 @@ def continuous_listen_and_act(language_choice):
     while True:
         print("Please say a command...")
         with sr.Microphone() as source:
+            recognizer.adjust_for_ambient_noise(source)  # Adjusting for ambient noise can improve recognition
             audio = recognizer.listen(source, timeout=10, phrase_time_limit=10)
+            audio_callback(recognizer, audio, language_choice)
             try:
                 recognized_text = recognizer.recognize_google(audio, language=language_choice)
                 print("Transcription: " + recognized_text)
                 
-                perform_action(recognized_text)  
                 if recognized_text.lower() == "stop":
                     print("Stopping.")
                     break
-
-            #The following except blocks handle the different exceptions that can occur during speech recognition    
-            except sr.WaitTimeoutError: 
-                print("No speech detected within the time limit. Please try again.")
             except sr.UnknownValueError:
-                speak("Sorry, I couldn't understand that. Please try again.")
-                print("Sorry, I couldn't understand that. Please try again.")
+                print("Colud not understand audio")
             except sr.RequestError as e:
                 print(f"Could not request results from Google Speech Recognition service; {e}")
-            except Exception as e:
-                print(f"An error occurred: {str(e)}")
-                speak("An error occurred. Please try again.")
 
 if __name__ == "__main__":
     main()
