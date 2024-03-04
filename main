@@ -14,11 +14,12 @@ import webbrowser
 import json
 import sounddevice as sd
 import speech_recognition as sr
-from pynput.keyboard import Controller, Key
+from pynput.keyboard import Key, Controller
 from pynput import keyboard
 import re
 import json
 import threading
+#import ml
 
 chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 
@@ -44,59 +45,60 @@ with open('commands.json', 'r') as file:
 
 keyboard_controller = Controller()
 
-def handle_dynamic_search(command_text, commands_json):
-    for command_key, command_details in commands_json.items():
-        if command_details.get('action') == 'dynamic_search':
-            # Updated regex to be more flexible with command structures
+def handle_dynamic_search(text, commands):
+    """Attempt to handle dynamic search commands."""
+    for command_key, command_details in commands.items():
+        if command_details.get('action') == 'dynamic_search' and command_key.lower() in text.lower():
             pattern = re.compile(re.escape(command_key) + r'\s(.+)', re.IGNORECASE)
-            match = pattern.search(command_text)
+            match = pattern.search(text)
             if match:
                 search_query = match.group(1).strip()
                 search_url = command_details['base_url'].format(search_query)
                 webbrowser.open(search_url)
-                break
+                print(f"Opening {search_url}")
+                return True
+    return False
+
+def execute_hotkey(keys):
+    for key in keys:
+        if hasattr(Key, key):  # If it's a special key
+            key_to_press = getattr(Key, key)
+        else:
+            key_to_press = key  # Directly use the key if it's not a special key
+        keyboard_controller.press(key_to_press)
+        keyboard_controller.release(key_to_press)
 
 def audio_callback(recognizer, audio, language_choice):
-    
     try:
         text = recognizer.recognize_google(audio, language=language_choice)
         print(f"Google Speech Recognition thinks you said '{text}'")
-        command_executed = False
 
-        # Load commands from JSON
-        with open('commands.json', 'r') as file:
-            commands_json = json.load(file)
-
-        for command_key, command_details in commands_json.items():
-            if command_key.lower() in text.lower():
-                if command_details['action'] == 'dynamic_search':
-                    handle_dynamic_search(text, commands_json)
-                elif command_details['action'] == 'hotkey':
-                    # Simulate hotkey press
-                    hotkey = command_details['hotkey']
-                    keyboard.press(hotkey)
-                    keyboard.release(hotkey)
-                elif command_details['action'] == 'subprocess':
-                    # Execute a subprocess command
-                    subprocess_command = command_details['subprocess_command']
-                    subprocess.run(subprocess_command, shell=True)
-
-                print(f"Executing {command_details['action']} for {command_key}")
-                command_executed = True
-                break  #   checking after the first match
-        
-        if not command_executed:
-            print("Command not found.")
-            
+        # Attempt to handle dynamic search commands first
+        if not handle_dynamic_search(text, commands):
+            # If not a dynamic search, process other command types
+            for command_key, command_details in commands.items():
+                if command_key.lower() in text.lower():
+                    action = command_details['action']
+                    if action == 'hotkey':
+                        execute_hotkey(command_details['keys'])
+                    elif action == 'subprocess':
+                        # Execute subprocess command
+                        subprocess_command = command_details['command']
+                        subprocess.run(subprocess_command, shell=True)
+                    print(f"Executing {action} for {command_key}")
+                    break
+            else:
+                print("Command not found.")
     except sr.UnknownValueError:
         print("Google Speech Recognition could not understand audio")
     except sr.RequestError as e:
         print(f"Could not request results from Google Speech Recognition service; {e}")
 
+
 #Main function + Function for determine time of day and greet the user
 def main():
     def listen_for_trigger_word(EVA):
-        # Function implementation will go here
+        # Function implementation will go here once implemented 
         pass
 
     trigger_detected = listen_for_trigger_word('EVA')
