@@ -18,12 +18,13 @@
   "take screenshot": {"action": "hotkey", "keys": ["win", "shift", "s"]},
   "open spotify": {"action": "subprocess", "command": ["start", "spotify"]},
   "open discord": {"action": "subprocess", "command": ["start", "discord"]},
-  "open steam": {"action": "subprocess", "command": ["start", "steam"]},
+  "open steam": {"action": "subprocess", "command": ["C:\\Program Files (x86)\\Steam\\steam.exe"]},
+  "open epic games": {"action": "subprocess", "command": ["C:\\Program Files (x86)\\Steam\\epicgameslauncher.exe"]},
   "open calculator": {"action": "subprocess", "command": ["start", "calc"]},
   "open calendar": {"action": "subprocess", "command": ["start", "outlookcal:"]},
   "search Google for": {"action": "dynamic_search", "base_url": "https://www.google.com/search?q={}"},
   "search YouTube for": {"action": "dynamic_search", "base_url": "https://www.youtube.com/results?search_query={}"},
-  "search Wikipedia for": {"action": "dynamic_search", "base_url": "https://en.wikipedia.org/wiki/{}"},
+  "search Wikipedia for": {"action": "dynamic_search", "base_url": "https://en.wikipedia.org/wiki/{}s"},
   "search Amazon for": {"action": "dynamic_search", "base_url": "https://www.amazon.com/s?k={}"},
   "search eBay for": {"action": "dynamic_search", "base_url": "https://www.ebay.com/sch/i.html?_nkw={}"}
 }
