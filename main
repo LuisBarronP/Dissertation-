@@ -192,7 +192,6 @@ def listen_in_background(trigger_word="EVA"):
             if trigger_word.lower() in speech_as_text.lower():
                 print("EVA activated")
                 speak("EVA activated")
-                # Here, add any actions to perform upon activation
         except (sr.UnknownValueError, sr.RequestError):
             pass
 
