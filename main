@@ -61,13 +61,9 @@ def handle_dynamic_search(text, commands):
 
 def execute_hotkey(keys):
     for key in keys:
-        if hasattr(Key, key):  # If it's a special key
-            key_to_press = getattr(Key, key)
-        else:
-            key_to_press = key  # Directly use the key if it's not a special key
+        key_to_press = getattr(Key, key, key)
         keyboard_controller.press(key_to_press)
         keyboard_controller.release(key_to_press)
-
 def audio_callback(recognizer, audio, language_choice):
     try:
         text = recognizer.recognize_google(audio, language=language_choice)
@@ -98,13 +94,37 @@ def audio_callback(recognizer, audio, language_choice):
 #Main function + Function for determine time of day and greet the user
 def main():
     def listen_for_trigger_word(EVA):
-        # Function implementation will go here once implemented 
-        pass
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            recognizer.adjust_for_ambient_noise(source)
+            print("EVA will activate upon hearing the trigger word. Please say 'EVA' to activate.")
+            speak("EVA will activate upon hearing the trigger word. Please say 'EVA' to activate.")
+            audio = recognizer.listen(source, timeout=300, phrase_time_limit=300) #5 minutes activation time limit to avoid infinite loop
+            try:
+                recognized_text = recognizer.recognize_google(audio, language='en-US')
+                print("Transcription: " + recognized_text)
+                if EVA.lower() in recognized_text.lower():
+                    return True
+            except sr.UnknownValueError:
+                print("Colud not understand audio")
+            except sr.RequestError as e:
+                print(f"Could not request results from Google Speech Recognition service; {e}")
+        return False
 
-    trigger_detected = listen_for_trigger_word('EVA')
-    if trigger_detected:
-        print("Eva activated")
-        speak("Eva activated")
+    trigger_detected = False
+    while not trigger_detected:
+        trigger_detected = listen_for_trigger_word('EVA')
+
+    print("Eva activated")
+    speak("Eva activated")  
+    
+    start_time = time.time()
+    while not trigger_detected:
+        trigger_detected = listen_for_trigger_word('EVA')
+        if time.time() - start_time >= 300:
+            print("Timeout reached. Exiting. Please relaunch the program.")
+            speak("Timeout reached. Exiting. Please relaunch the program.")
+            return
 
     current_hour = datetime.datetime.now().hour
     greeting = "Good Morning!" if current_hour < 12 else "Good Afternoon!" if current_hour < 18 else "Good Evening!"
