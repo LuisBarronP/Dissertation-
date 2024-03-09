@@ -90,42 +90,46 @@ def audio_callback(recognizer, audio, language_choice):
     except sr.RequestError as e:
         print(f"Could not request results from Google Speech Recognition service; {e}")
 
+def listen_for_trigger_word(trigger_word="EVA"):
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        recognizer.adjust_for_ambient_noise(source)
+        print(f"{trigger_word} will activate upon hearing the trigger word. Please say '{trigger_word}' to activate.")
+        speak(f"{trigger_word} will activate upon hearing the trigger word. Please say '{trigger_word}' to activate.")
+        start_time = time.time()
+        while True:
+            try:
+                audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)  # Listen for 5 seconds
+                recognized_text = recognizer.recognize_google(audio, language='en-US')
+                print("Transcription: " + recognized_text)
+                if trigger_word.lower() in recognized_text.lower():
+                    print(f"{trigger_word} activated")
+                    speak(f"{trigger_word} activated")
+                    return True
+                if time.time() - start_time > 300:  # 5 minutes timeout
+                    print("Timeout reached. Exiting. Please relaunch the program.")
+                    speak("Timeout reached. Exiting. Please relaunch the program.")
+                    return False
+                if speak == "exit" or "stop" in recognized_text.lower():
+                    print("Exiting.")
+                    speak("Exiting.")
+                    return False
+            except sr.WaitTimeoutError:
+                print("Listening timeout, trying again...")
+            except sr.UnknownValueError:
+                print("I didn't catch that. Please try again")
+            except sr.RequestError as e:
+                print(f"Could not request results from Google Speech Recognition service; {e}")
+                break
 
 #Main function + Function for determine time of day and greet the user
 def main():
-    def listen_for_trigger_word(EVA):
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
-            recognizer.adjust_for_ambient_noise(source)
-            print("EVA will activate upon hearing the trigger word. Please say 'EVA' to activate.")
-            speak("EVA will activate upon hearing the trigger word. Please say 'EVA' to activate.")
-            audio = recognizer.listen(source, timeout=300, phrase_time_limit=300) #5 minutes activation time limit to avoid infinite loop
-            try:
-                recognized_text = recognizer.recognize_google(audio, language='en-US')
-                print("Transcription: " + recognized_text)
-                if EVA.lower() in recognized_text.lower():
-                    return True
-            except sr.UnknownValueError:
-                print("Colud not understand audio")
-            except sr.RequestError as e:
-                print(f"Could not request results from Google Speech Recognition service; {e}")
-        return False
-
-    trigger_detected = False
-    while not trigger_detected:
-        trigger_detected = listen_for_trigger_word('EVA')
-
-    print("Eva activated")
-    speak("Eva activated")  
+    trigger_detected = listen_for_trigger_word('EVA')
+    if not trigger_detected:
+        print("EVA exiting")
+        speak("EVA exiting")
+        return  
     
-    start_time = time.time()
-    while not trigger_detected:
-        trigger_detected = listen_for_trigger_word('EVA')
-        if time.time() - start_time >= 300:
-            print("Timeout reached. Exiting. Please relaunch the program.")
-            speak("Timeout reached. Exiting. Please relaunch the program.")
-            return
-
     current_hour = datetime.datetime.now().hour
     greeting = "Good Morning!" if current_hour < 12 else "Good Afternoon!" if current_hour < 18 else "Good Evening!"
 
@@ -140,6 +144,11 @@ def main():
     # Calling speak right after print to minimize delay
     speak("Choose a language from English or Spanish to get started.")
     language_choice = get_language_choice(recognizer)
+    
+    if speak == "exit" or "stop" in language_choice.lower():
+        print("Exiting.")
+        speak("Exiting.")
+        return False
 
     if language_choice:
         message = f"You have selected {'English' if language_choice == 'en-US' else 'Spanish'}. I am ready to receive your commands."
@@ -149,6 +158,8 @@ def main():
     else:
         print("Failed to select a language. Exiting.")
         speak("Failed to select a language. Exiting.")
+
+
 
 #Function to get language choice from the user using speech recognition
 def get_language_choice(recognizer):
