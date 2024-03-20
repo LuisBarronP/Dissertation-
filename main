@@ -14,74 +14,98 @@ import webbrowser
 import json
 import sounddevice as sd
 import speech_recognition as sr
-from pynput.keyboard import Key, Controller
-from pynput import keyboard
 import re
 import json
 import threading
-#import ml
+from nlp import preprocess_command
+from pynput.keyboard import Controller, KeyCode, Key
 
 chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 
-#Initializing the pyttsx3 engine
+# Initializing the pyttsx3 engine
 engine = pyttsx3.init('sapi5')
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)
 # To adjust the speech rate
 engine.setProperty('rate', 220) 
 
-#Function to speak the given text
+# Function to speak the given text
 def speak(audio):
     engine.say(audio)
     engine.runAndWait()
 
-#Function to check if a given process is running
+# Function to check if a given process is running
 def is_process_running(process_name):
     return any(process_name.lower() in p.name().lower() for p in psutil.process_iter(['name']))
 
-#Loading commands from JSON
+# Loading commands from JSON
 with open('commands.json', 'r') as file:
     commands = json.load(file)
 
-keyboard_controller = Controller()
 
-#Function to handle dynamic search
+# Function to handle dynamic search
 def handle_dynamic_search(text, commands):
+    preprocessed_text = preprocess_command(text)
+
     for command_key, command_details in commands.items():
-        if command_details.get('action') == 'dynamic_search' and command_key.lower() in text.lower():
+        if command_details.get('action') == 'dynamic_search' and command_key.lower() in preprocessed_text:
             pattern = re.compile(re.escape(command_key) + r'\s(.+)', re.IGNORECASE)
-            match = pattern.search(text)
+            match = pattern.search(preprocessed_text)
             if match:
                 search_query = match.group(1).strip()
                 search_url = command_details['base_url'].format(search_query)
                 webbrowser.open(search_url)
-                print(f"Opening {search_url}")
+                print(f"Searching for: {search_query}")
                 return True
     return False
 
-#Function to execute hotkey commands
+# Executing hotkey commands
 def execute_hotkey(keys):
-    for key in keys:
-        key_to_press = getattr(Key, key, key)
-        keyboard_controller.press(key_to_press)
-        keyboard_controller.release(key_to_press)
+    # Dictionary mapping custom media command strings to virtual key codes
+    media_key_vk = {
+        'mediaPlayPause': 0xB3,
+        'mediaStop': 0xB2,
+        'mediaNextTrack': 0xB0,
+        'mediaPrevTrack': 0xB1,
+        'volumeMute': 0xAD,
+        'volumeUp': 0xAF,
+        'volumeDown': 0xAE
+    }
 
-#Function to handle audio input and execute commands
+    keyboard_controller = Controller()
+
+    for key in keys:
+        if key in media_key_vk:
+            # If the key is a recognized media command, it will use its virtual key code
+            vk = media_key_vk[key]
+            keyboard_controller.press(KeyCode.from_vk(vk))
+            keyboard_controller.release(KeyCode.from_vk(vk))
+        else:
+            # Handling other keys 
+            if hasattr(Key, key):
+                key_to_press = getattr(Key, key)
+                keyboard_controller.press(key_to_press)
+                keyboard_controller.release(key_to_press)
+            else:
+                print(f"Key {key} is not recognized or supported for direct execution.")
+
+# Handling audio input and execute commands
 def audio_callback(recognizer, audio, language_choice, is_paused):
     try:
         text = recognizer.recognize_google(audio, language=language_choice)
-        print(f"Did you say '{text}'?")
+        preprocessed_text = preprocess_command(text)  # Preprocessing the text using the NLP processor
+        print(f"Did you say '{text}'? This has been processed as '{preprocessed_text}'")
 
-        # Handling "stop" command
-        if "stop" in text.lower():
-            print("Stopping.")
-            speak("Stopping.")
-            return False  # Signal to stop listening
+        # "exit" command
+        if "exit" in preprocessed_text:
+            print("Exiting. Goodbye!")
+            speak("Exiting. Goodbye!")
+            return False
 
-        # Handling "pause" command
+        # "pause" command
         if "pause" in text.lower() and not is_paused:
-            print("Paused.")
-            speak("Paused.")
+            print("Paused. Say 'EVA' to resume.")
+            speak("Paused. Say 'EVA' to resume.")
             return True  # Signal to pause listening
 
         # Proceed with other commands if not paused
@@ -89,28 +113,28 @@ def audio_callback(recognizer, audio, language_choice, is_paused):
             for command_key, command_details in commands.items():
                 if command_key.lower() in text.lower():
                     action = command_details.get('action')
-                    if action == 'hotkey':
-                        execute_hotkey(command_details['keys'])
-                    elif action == 'subprocess':
+                    if action == 'subprocess':
                         subprocess_command = command_details.get('command', [])
                         subprocess.run(subprocess_command, shell=True)
+                    if action == 'hotkey':
+                        keys = command_details.get('keys', [])
+                        execute_hotkey(keys)
                     elif action == 'dynamic_search':
-                        search_query = text.replace(command_key, "", 1).strip()  # Remove command key and trim
+                        search_query = text.replace(command_key, "", 1).strip()
                         search_url = command_details['base_url'].format(search_query)
                         webbrowser.open(search_url)
                         print(f"Searching for: {search_query}")
                     break
             else:
                 print("Command not found. Please try again.")
-        # Return None to indicate normal execution without pausing or stopping
         return None
 
     except sr.UnknownValueError:
         print("Audio could not be understood. Please try again.")
-        return None  # Return None to indicate continuation without action
+        return None  
     except sr.RequestError as e:
         print(f"Could not request results from Google Speech Recognition service; {e}")
-        return None  # Return None on error, maintaining the current paused state
+        return None 
 
 #Function to listen for the trigger word and activate the assistant
 def listen_for_trigger_word(trigger_word="EVA"):
@@ -122,14 +146,14 @@ def listen_for_trigger_word(trigger_word="EVA"):
         start_time = time.time()
         while True:
             try:
-                audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)  # Listen for 5 seconds
+                audio = recognizer.listen(source, timeout=5, phrase_time_limit=5) 
                 recognized_text = recognizer.recognize_google(audio, language='en-US')
                 print("Transcription: " + recognized_text)
                 if trigger_word.lower() in recognized_text.lower():
                     print(f"{trigger_word} activated")
                     speak(f"{trigger_word} activated")
                     return True
-                if time.time() - start_time > 300:  # 5 minutes timeout
+                if time.time() - start_time > 300:  # Timeout after 5 minutes
                     print("Timeout reached. Exiting. Please relaunch the program.")
                     speak("Timeout reached. Exiting. Please relaunch the program.")
                     return False
@@ -145,7 +169,7 @@ def listen_for_trigger_word(trigger_word="EVA"):
                 print(f"Could not request results from Google Speech Recognition service; {e}")
                 break
 
-#Main function + Function for determine time of day and greet the user
+# Main function to execute the assistant
 def main():
     trigger_detected = listen_for_trigger_word('EVA')
     if not trigger_detected:
@@ -164,7 +188,7 @@ def main():
 
     recognizer = sr.Recognizer()
     print("Choose a language from English or Spanish to get started.")
-    # Calling speak right after print to minimize delay
+    # Calling speak right after print to minimise delay
     speak("Choose a language from English or Spanish to get started.")
     language_choice = get_language_choice(recognizer)
     
@@ -199,7 +223,7 @@ def get_language_choice(recognizer):
                     print("Sorry, I didn't understand. Please say English or Spanish.")
         except sr.UnknownValueError:
             speak("Sorry, I couldn't understand that. Please say English or Spanish.")
-            print(  "Sorry, I couldn't understand that. Please say English or Spanish.")
+            print("Sorry, I couldn't understand that. Please say English or Spanish.")
         except sr.RequestError as e:
             print(f"Could not request results; {e}")
 
@@ -221,7 +245,7 @@ def listen_in_background(trigger_word="EVA"):
         recognizer.adjust_for_ambient_noise(source)
         stop_listening = recognizer.listen_in_background(microphone, callback)
 
-    return stop_listening  # Return the stop function if needed to stop listening
+    return stop_listening 
 
 #Function to continuously listen for commands and act on them
 def continuous_listen_and_act(language_choice):
@@ -237,9 +261,9 @@ def continuous_listen_and_act(language_choice):
                 # Pass paused state to audio_callback and receive pause control action
                 pause_control = audio_callback(recognizer, audio, language_choice, paused)
                 
-                if pause_control is False:  #Stop command was received
+                if pause_control is False: 
                     break
-                elif pause_control is True:  # Pause command was received
+                elif pause_control is True:  
                     paused = True
         else:
             print("EVA is paused. Say 'EVA' to continue.")
