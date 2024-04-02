@@ -17,10 +17,12 @@ import speech_recognition as sr
 import re
 import json
 import threading
-from nlp import preprocess_command
+from nlp import preprocess_command 
 from pynput.keyboard import Controller, KeyCode, Key
+import tkinter as tk
 
 chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+is_paused = False
 
 # Initializing the pyttsx3 engine
 engine = pyttsx3.init('sapi5')
@@ -42,6 +44,16 @@ def is_process_running(process_name):
 with open('commands.json', 'r') as file:
     commands = json.load(file)
 
+# Function to pause the voice assistant
+def pause_voice_assistant():
+    global is_paused
+    is_paused = not is_paused
+    if is_paused:
+        print("EVA paused.")
+        speak("EVA Paused.")
+    else:
+        print("Resuming.")
+        speak("Resuming.")
 
 # Function to handle dynamic search
 def handle_dynamic_search(text, commands):
@@ -73,7 +85,6 @@ def execute_hotkey(keys):
     }
 
     keyboard_controller = Controller()
-
     for key in keys:
         if key in media_key_vk:
             # If the key is a recognized media command, it will use its virtual key code
@@ -106,7 +117,7 @@ def audio_callback(recognizer, audio, language_choice, is_paused):
         if "pause" in text.lower() and not is_paused:
             print("Paused. Say 'EVA' to resume.")
             speak("Paused. Say 'EVA' to resume.")
-            return True  # Signal to pause listening
+            return True  
 
         # Proceed with other commands if not paused
         if not is_paused:
@@ -170,7 +181,7 @@ def listen_for_trigger_word(trigger_word="EVA"):
                 break
 
 # Main function to execute the assistant
-def main():
+def start_voice_assistant():
     trigger_detected = listen_for_trigger_word('EVA')
     if not trigger_detected:
         print("EVA exiting")
@@ -250,10 +261,11 @@ def listen_in_background(trigger_word="EVA"):
 #Function to continuously listen for commands and act on them
 def continuous_listen_and_act(language_choice):
     recognizer = sr.Recognizer()
+    global is_paused
     paused = False  # Tracks whether EVA is paused
     
     while True:
-        if not paused:
+        if not is_paused:
             print("Please say a command...")
             with sr.Microphone() as source:
                 recognizer.adjust_for_ambient_noise(source)  # Adjusting for ambient noise can improve recognition
@@ -261,10 +273,12 @@ def continuous_listen_and_act(language_choice):
                 # Pass paused state to audio_callback and receive pause control action
                 pause_control = audio_callback(recognizer, audio, language_choice, paused)
                 
-                if pause_control is False: 
+                if pause_control == "stop":
                     break
-                elif pause_control is True:  
-                    paused = True
+                elif pause_control == "pause":
+                    is_paused = True
+                elif pause_control == "resume":
+                    is_paused = False
         else:
             print("EVA is paused. Say 'EVA' to continue.")
             with sr.Microphone() as source:
@@ -283,6 +297,19 @@ def continuous_listen_and_act(language_choice):
                 except sr.RequestError as e:
                     print(f"Could not request results from Google Speech Recognition service; {e}")
 
+# Function to change the voice of the assistant
+def change_voice():
+    global voices
+    current_voice = engine.getProperty('voice')
+    if current_voice == voices[0].id:
+        engine.setProperty('voice', voices[1].id)
+        print("Voice changed.")
+        speak("Voice changed..")
+    else:
+        engine.setProperty('voice', voices[0].id)
+        print("Voice changed.")
+        speak("Voice changed.")
+
 
 if __name__ == "__main__":
-    main()
+    start_voice_assistant()
