@@ -21,6 +21,8 @@ from nlp import preprocess_command
 from pynput.keyboard import Controller, KeyCode, Key
 import tkinter as tk
 
+commands = {}
+
 chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 is_paused = False
 
@@ -49,11 +51,9 @@ def pause_voice_assistant():
     global is_paused
     is_paused = not is_paused
     if is_paused:
-        print("EVA paused.")
-        speak("EVA Paused.")
+        print_and_speak("EVA is paused.")
     else:
-        print("Resuming.")
-        speak("Resuming.")
+        print_and_speak("Resuming.")
 
 # Function to handle dynamic search
 def handle_dynamic_search(text, commands):
@@ -87,7 +87,7 @@ def execute_hotkey(keys):
     keyboard_controller = Controller()
     for key in keys:
         if key in media_key_vk:
-            # If the key is a recognized media command, it will use its virtual key code
+            # If key is a recognized media command, it will use its virtual key code
             vk = media_key_vk[key]
             keyboard_controller.press(KeyCode.from_vk(vk))
             keyboard_controller.release(KeyCode.from_vk(vk))
@@ -98,7 +98,7 @@ def execute_hotkey(keys):
                 keyboard_controller.press(key_to_press)
                 keyboard_controller.release(key_to_press)
             else:
-                print(f"Key {key} is not recognized or supported for direct execution.")
+                print_and_speak(f"Key {key} is not recognized or supported for direct execution.")
 
 # Handling audio input and execute commands
 def audio_callback(recognizer, audio, language_choice, is_paused):
@@ -109,14 +109,12 @@ def audio_callback(recognizer, audio, language_choice, is_paused):
 
         # "exit" command
         if "exit" in preprocessed_text:
-            print("Exiting. Goodbye!")
-            speak("Exiting. Goodbye!")
+            print_and_speak("Exiting, goodbye!")
             return False
 
         # "pause" command
         if "pause" in text.lower() and not is_paused:
-            print("Paused. Say 'EVA' to resume.")
-            speak("Paused. Say 'EVA' to resume.")
+            print_and_speak("Paused. Say 'resume' to continue.")
             return True  
 
         # Proceed with other commands if not paused
@@ -137,14 +135,14 @@ def audio_callback(recognizer, audio, language_choice, is_paused):
                         print(f"Searching for: {search_query}")
                     break
             else:
-                print("Command not found. Please try again.")
+                print_and_speak("Command not found. Please try again.")
         return None
 
     except sr.UnknownValueError:
-        print("Audio could not be understood. Please try again.")
+        print_and_speak("Audio could not be understood. Please try again.")
         return None  
     except sr.RequestError as e:
-        print(f"Could not request results from Google Speech Recognition service; {e}")
+        print_and_speak(f"Could not request results from Google Speech Recognition service; {e}")
         return None 
 
 #Function to listen for the trigger word and activate the assistant
@@ -152,77 +150,70 @@ def listen_for_trigger_word(trigger_word="EVA"):
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
         recognizer.adjust_for_ambient_noise(source)
-        print(f"{trigger_word} will activate upon hearing the trigger word. Please say '{trigger_word}' to activate.")
-        speak(f"{trigger_word} will activate upon hearing the trigger word. Please say '{trigger_word}' to activate.")
+        print_and_speak(f"{trigger_word} will activate upon hearing the trigger word. Please say '{trigger_word}' to activate.")
         start_time = time.time()
         while True:
             try:
                 audio = recognizer.listen(source, timeout=5, phrase_time_limit=5) 
                 recognized_text = recognizer.recognize_google(audio, language='en-US')
-                print("Transcription: " + recognized_text)
+                print_and_speak("Transcription: " + recognized_text)
                 if trigger_word.lower() in recognized_text.lower():
-                    print(f"{trigger_word} activated")
-                    speak(f"{trigger_word} activated")
+                    print_and_speak(f"{trigger_word} activated")
                     return True
                 if time.time() - start_time > 300:  # Timeout after 5 minutes
-                    print("Timeout reached. Exiting. Please relaunch the program.")
-                    speak("Timeout reached. Exiting. Please relaunch the program.")
+                    print_and_speak("Timeout reached. Exiting. Please relaunch the program.")
                     return False
                 if speak == "exit" or "stop" in recognized_text.lower():
-                    print("Exiting.")
-                    speak("Exiting.")
+                    print_and_speak("Exiting.")
                     return False
             except sr.WaitTimeoutError:
-                print("Listening timeout, trying again...")
+                print_and_speak("Listening timeout, trying again...")
             except sr.UnknownValueError:
-                print("I didn't catch that. Please try again")
+                print_and_speak("I didn't catch that. Please try again")
             except sr.RequestError as e:
-                print(f"Could not request results from Google Speech Recognition service; {e}")
+                print_and_speak(f"Could not request results from Google Speech Recognition service; {e}")
                 break
 
 # Main function to execute the assistant
 def start_voice_assistant():
+    global commands
+    
     trigger_detected = listen_for_trigger_word('EVA')
     if not trigger_detected:
-        print("EVA exiting")
-        speak("EVA exiting")
+        print_and_speak("EVA exiting")
         return  
     
     current_hour = datetime.datetime.now().hour
     greeting = "Good Morning!" if current_hour < 12 else "Good Afternoon!" if current_hour < 18 else "Good Evening!"
 
-    print(greeting)
-    speak(greeting)
-
-    print("I am your Assistant EVA for today.")
-    speak("I am your Assistant EVA for today.")
+    print_and_speak(greeting)
+    print_and_speak("I am your Assistant EVA for today.")
 
     recognizer = sr.Recognizer()
-    print("Choose a language from English or Spanish to get started.")
+    print_and_speak("Choose a language from English or Spanish to get started.")
     # Calling speak right after print to minimise delay
-    speak("Choose a language from English or Spanish to get started.")
     language_choice = get_language_choice(recognizer)
     
-    if speak == "exit" or "stop" in language_choice.lower():
-        print("Exiting.")
-        speak("Exiting.")
-        return False
+    if language_choice == 'en-US':
+        with open('commands.json', 'r') as file:
+            commands = json.load(file)
+    elif language_choice == 'es-ES':
+        with open('escommands.json', 'r') as file:
+            commands = json.load(file)
 
     if language_choice:
         message = f"You have selected {'English' if language_choice == 'en-US' else 'Spanish'}. I am ready to receive your commands."
-        print(message)
-        speak(message)
+        print_and_speak(message)
         continuous_listen_and_act(language_choice)
     else:
-        print("Failed to select a language. Exiting.")
-        speak("Failed to select a language. Exiting.")
+        print_and_speak("Failed to select a language. Exiting.")
 
 #Function to get language choice from the user using speech recognition
 def get_language_choice(recognizer):
     while True:
         try:
             with sr.Microphone() as source:
-                print("Listening for language choice...")
+                print_and_speak("Listening for language choice...")
                 audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)
                 choice = recognizer.recognize_google(audio).lower()
                 if 'english' in choice:
@@ -230,11 +221,9 @@ def get_language_choice(recognizer):
                 elif 'español' in choice or 'spanish' in choice:
                     return 'es-ES'
                 else:
-                    speak("Sorry, I didn't understand. Please say English or Spanish.")
-                    print("Sorry, I didn't understand. Please say English or Spanish.")
+                    print_and_speak("Sorry, I didn't understand. Please say English or Spanish.")
         except sr.UnknownValueError:
-            speak("Sorry, I couldn't understand that. Please say English or Spanish.")
-            print("Sorry, I couldn't understand that. Please say English or Spanish.")
+            print_and_speak("Sorry, I couldn't understand that. Please say English or Spanish.")
         except sr.RequestError as e:
             print(f"Could not request results; {e}")
 
@@ -246,8 +235,7 @@ def listen_in_background(trigger_word="EVA"):
         try:
             speech_as_text = recognizer.recognize_google(audio)
             if trigger_word.lower() in speech_as_text.lower():
-                print("EVA activated")
-                speak("EVA activated")
+                print_and_speak("EVA activated")
 
         except (sr.UnknownValueError, sr.RequestError):
             pass
@@ -261,16 +249,15 @@ def listen_in_background(trigger_word="EVA"):
 #Function to continuously listen for commands and act on them
 def continuous_listen_and_act(language_choice):
     recognizer = sr.Recognizer()
-    global is_paused
-    paused = False  # Tracks whether EVA is paused
+    global is_paused, pause_voice_assistant
+    paused = False  
     
     while True:
         if not is_paused:
-            print("Please say a command...")
+            print_and_speak("Please say a command...")
             with sr.Microphone() as source:
-                recognizer.adjust_for_ambient_noise(source)  # Adjusting for ambient noise can improve recognition
+                recognizer.adjust_for_ambient_noise(source)  
                 audio = recognizer.listen(source, timeout=10, phrase_time_limit=10)
-                # Pass paused state to audio_callback and receive pause control action
                 pause_control = audio_callback(recognizer, audio, language_choice, paused)
                 
                 if pause_control == "stop":
@@ -290,7 +277,6 @@ def continuous_listen_and_act(language_choice):
                     
                     if "eva" in recognized_text.lower():
                         print("Resuming...")
-                        speak("Resuming...")
                         paused = False  
                 except sr.UnknownValueError:
                     print("Audio could not be understood. Please try again.")
@@ -303,13 +289,23 @@ def change_voice():
     current_voice = engine.getProperty('voice')
     if current_voice == voices[0].id:
         engine.setProperty('voice', voices[1].id)
-        print("Voice changed.")
-        speak("Voice changed..")
+        print_and_speak("Voice changed.")
     else:
         engine.setProperty('voice', voices[0].id)
-        print("Voice changed.")
-        speak("Voice changed.")
+        print_and_speak("Voice changed.")
 
+# Callback function for updating the transcript
+update_transcript_callback = None
+
+def set_update_transcript_callback(callback):
+    global update_transcript_callback
+    update_transcript_callback = callback
+
+def print_and_speak(message):
+    print(message)
+    speak(message)
+    if update_transcript_callback is not None:
+        update_transcript_callback(message)
 
 if __name__ == "__main__":
     start_voice_assistant()
